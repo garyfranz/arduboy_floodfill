@@ -199,12 +199,12 @@ void loop() {
     arduboy.print(level);
 
     //use game tiles as 'art' on title screen
-    arduboy.drawBitmap(4, 28, SHAPE1, TILEWIDTH, TILEHEIGHT, WHITE); //target 0
-    arduboy.drawBitmap(24, 28, SHAPE3, TILEWIDTH, TILEHEIGHT, WHITE); //target 2
-    arduboy.drawBitmap(44, 28, SHAPE5, TILEWIDTH, TILEHEIGHT, WHITE); //target 4
-    arduboy.drawBitmap(64, 28, SHAPE2, TILEWIDTH, TILEHEIGHT, WHITE); //target 1
-    arduboy.drawBitmap(84, 28, SHAPE4, TILEWIDTH, TILEHEIGHT, WHITE); //target 3
-    arduboy.drawBitmap(104, 28, SHAPE6, TILEWIDTH, TILEHEIGHT, WHITE); //target 5
+    arduboy.drawBitmap(10, 28, SHAPE1, TILEWIDTH, TILEHEIGHT, WHITE); //target 0
+    arduboy.drawBitmap(30, 28, SHAPE3, TILEWIDTH, TILEHEIGHT, WHITE); //target 2
+    arduboy.drawBitmap(50, 28, SHAPE5, TILEWIDTH, TILEHEIGHT, WHITE); //target 4
+    arduboy.drawBitmap(70, 28, SHAPE2, TILEWIDTH, TILEHEIGHT, WHITE); //target 1
+    arduboy.drawBitmap(90, 28, SHAPE4, TILEWIDTH, TILEHEIGHT, WHITE); //target 3
+    arduboy.drawBitmap(110, 28, SHAPE6, TILEWIDTH, TILEHEIGHT, WHITE); //target 5
 
     break; //TITLE
 
