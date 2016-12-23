@@ -3,15 +3,22 @@
 //  by Gary Franz
 //
 // v1.0 - Dec 17, 2016 - Initial Version
+// v1.1 - Dec 22, 2016 - Save last level to eeprom. New tiles for better visibility.
+//                       Fixed faulty logic used to determine flooded tiles.
+//                       Increased stack size, found a level that was needing to exceed it.
 //
 //====================================================================================
 
 #include <Arduboy2.h>
+#include <EEPROM.h>
+
+//read on arduboy community site to have a unique save location
+#define SAVE (EEPROM_STORAGE_SPACE_START + 353) //fld-353
 
 //the maximum size for the stack used in the flood fill algorithm
 //some levels bugged out a little when the stack size was set around 100-128
-//this is probably overkill at 192, but still have the memory for this
-static const int MAXSTACK PROGMEM = 192; 
+//this is probably overkill at 220, but level 167 would reach max stack size of 192
+static const int MAXSTACK PROGMEM = 220; 
 
 //total number of levels
 static const int MAXLEVEL PROGMEM = 999;
@@ -35,23 +42,23 @@ static const int NUMBERTILESVERTICAL PROGMEM = 8;
 static const int SELECTORSIZE PROGMEM = 12;
 
 //different shapes/patterns/tiles
-const unsigned char SHAPE1[] PROGMEM = {
-  0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88,
+const unsigned char PATTERN1[] PROGMEM = {
+  0x55, 0x00, 0xaa, 0x00, 0x55, 0x00, 0xaa, 0x00, 
 };
-const unsigned char SHAPE2[] PROGMEM = {
-  0x55, 0x00, 0xaa, 0x00, 0x55, 0x00, 0xaa, 0x00,
+const unsigned char PATTERN2[] PROGMEM = {
+  0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 
 };
-const unsigned char SHAPE3[] PROGMEM = {
-  0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0x33, 0x33, 
+const unsigned char PATTERN3[] PROGMEM = {
+  0x55, 0xff, 0xaa, 0xff, 0x55, 0xff, 0xaa, 0xff,
 };
-const unsigned char SHAPE4[] PROGMEM = {
-  0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 
-};
-const unsigned char SHAPE5[] PROGMEM = {
+const unsigned char PATTERN4[] PROGMEM = {
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
 };
-const unsigned char SHAPE6[] PROGMEM = {
-  0xc1, 0xe0, 0x70, 0x38, 0x1c, 0xe, 0x7, 0x83, 
+const unsigned char PATTERN5[] PROGMEM = {
+  0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 
+};
+const unsigned char PATTERN6[] PROGMEM = {
+  0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,  
 };
 
 const unsigned char sadface[] PROGMEM = {
@@ -76,14 +83,14 @@ const unsigned char happyface[] PROGMEM = {
 
 Arduboy2 arduboy;
 
+int countTotalFlood;
 int countTotalMoves;
 int level;
 
 char buttonAvailable;
 char arrowAvailable;
-char countTotalFlood;
-char target;
-char replacement;
+char newTile;
+char originalTile;
 char state;
 
 char gameTiles[NUMBERTILESHORIZONTAL][NUMBERTILESVERTICAL];
@@ -114,10 +121,17 @@ void setup() {
   buttonAvailable = 1; 
   arrowAvailable = 1;
 
-  target = 0;
-  replacement = 0;
+  newTile = 0;
+  originalTile = 0;
   state = TITLE; //start the game out on the title screen
-  level = 1;
+  
+  EEPROM.get(SAVE, level);
+  if(level > MAXLEVEL) {
+    level = MAXLEVEL;
+  }
+  if(level < 1) {
+    level = 1;
+  }
 
 }
 
@@ -140,6 +154,8 @@ void loop() {
       
       buttonAvailable = 0;
       state = GAME;
+
+      EEPROM.put(SAVE, level);
 
       setupNewGame();
 
@@ -199,12 +215,12 @@ void loop() {
     arduboy.print(level);
 
     //use game tiles as 'art' on title screen
-    arduboy.drawBitmap(10, 28, SHAPE1, TILEWIDTH, TILEHEIGHT, WHITE); //target 0
-    arduboy.drawBitmap(30, 28, SHAPE3, TILEWIDTH, TILEHEIGHT, WHITE); //target 2
-    arduboy.drawBitmap(50, 28, SHAPE5, TILEWIDTH, TILEHEIGHT, WHITE); //target 4
-    arduboy.drawBitmap(70, 28, SHAPE2, TILEWIDTH, TILEHEIGHT, WHITE); //target 1
-    arduboy.drawBitmap(90, 28, SHAPE4, TILEWIDTH, TILEHEIGHT, WHITE); //target 3
-    arduboy.drawBitmap(110, 28, SHAPE6, TILEWIDTH, TILEHEIGHT, WHITE); //target 5
+    arduboy.drawBitmap(10, 28, PATTERN1, TILEWIDTH, TILEHEIGHT, WHITE); 
+    arduboy.drawBitmap(30, 28, PATTERN2, TILEWIDTH, TILEHEIGHT, WHITE); 
+    arduboy.drawBitmap(50, 28, PATTERN3, TILEWIDTH, TILEHEIGHT, WHITE); 
+    arduboy.drawBitmap(70, 28, PATTERN4, TILEWIDTH, TILEHEIGHT, WHITE); 
+    arduboy.drawBitmap(90, 28, PATTERN5, TILEWIDTH, TILEHEIGHT, WHITE); 
+    arduboy.drawBitmap(110, 28, PATTERN6, TILEWIDTH, TILEHEIGHT, WHITE);
 
     break; //TITLE
 
@@ -212,8 +228,8 @@ void loop() {
 
     if (arduboy.pressed(UP_BUTTON) == true && arrowAvailable == 1) {
 
-      if (target >= 2) {
-        target = target - 2;
+      if (newTile >= 2) {
+        newTile = newTile - 2;
       }
 
       arrowAvailable = 0;
@@ -221,8 +237,8 @@ void loop() {
 
     if (arduboy.pressed(DOWN_BUTTON) == true && arrowAvailable == 1) {
 
-      if (target <= 3) {
-        target = target + 2;
+      if (newTile <= 3) {
+        newTile = newTile + 2;
       }
 
       arrowAvailable = 0;
@@ -230,8 +246,8 @@ void loop() {
 
     if (arduboy.pressed(LEFT_BUTTON) == true && arrowAvailable == 1) {
 
-      if (target == 1 || target == 3 || target == 5) {
-        target--;
+      if (newTile == 1 || newTile == 3 || newTile == 5) {
+        newTile--;
       }
 
       arrowAvailable = 0;
@@ -239,8 +255,8 @@ void loop() {
 
     if (arduboy.pressed(RIGHT_BUTTON) == true && arrowAvailable == 1) {
 
-      if (target == 0 || target == 2 || target == 4) {
-        target++;
+      if (newTile == 0 || newTile == 2 || newTile == 4) {
+        newTile++;
       }
 
       arrowAvailable = 0;
@@ -263,15 +279,19 @@ void loop() {
     drawBoard();
 
     //draw selection tiles
-    arduboy.drawBitmap(3, 28, SHAPE1, TILEWIDTH, TILEHEIGHT, WHITE); //target 0
-    arduboy.drawBitmap(3, 41, SHAPE3, TILEWIDTH, TILEHEIGHT, WHITE); //target 2
-    arduboy.drawBitmap(3, 54, SHAPE5, TILEWIDTH, TILEHEIGHT, WHITE); //target 4
-    arduboy.drawBitmap(16, 28, SHAPE2, TILEWIDTH, TILEHEIGHT, WHITE); //target 1
-    arduboy.drawBitmap(16, 41, SHAPE4, TILEWIDTH, TILEHEIGHT, WHITE); //target 3
-    arduboy.drawBitmap(16, 54, SHAPE6, TILEWIDTH, TILEHEIGHT, WHITE); //target 5
+    //ordered like so:
+    // 0 1
+    // 2 3
+    // 4 5
+    arduboy.drawBitmap(3, 28, PATTERN1, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 0
+    arduboy.drawBitmap(3, 41, PATTERN3, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 2
+    arduboy.drawBitmap(3, 54, PATTERN5, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 4
+    arduboy.drawBitmap(16, 28, PATTERN2, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 1
+    arduboy.drawBitmap(16, 41, PATTERN4, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 3
+    arduboy.drawBitmap(16, 54, PATTERN6, TILEWIDTH, TILEHEIGHT, WHITE); //newTile 5
 
-    //draw target selection rectangle
-    switch (target) {
+    //draw newTile selection rectangle
+    switch (newTile) {
     case 0:
       arduboy.drawRect(1, 26, SELECTORSIZE, SELECTORSIZE, WHITE);
       break;
@@ -352,6 +372,8 @@ void loop() {
       if (level == MAXLEVEL + 1) {
         level = 1;
       }
+
+      EEPROM.put(SAVE, level);
       
       setupNewGame();
       
@@ -425,27 +447,27 @@ void drawBoard() {
       switch (gameTiles[x][y]) {
 
       case 0:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE1, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN1, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       case 1:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE2, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN2, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       case 2:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE3, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN3, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       case 3:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE4, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN4, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       case 4:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE5, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN5, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       case 5:
-        arduboy.drawBitmap(backgroundx, backgroundy, SHAPE6, TILEWIDTH, TILEHEIGHT, WHITE);
+        arduboy.drawBitmap(backgroundx, backgroundy, PATTERN6, TILEWIDTH, TILEHEIGHT, WHITE);
         break;
 
       }
@@ -465,12 +487,13 @@ void createGameBoard() {
     for (char h = 0; h < NUMBERTILESVERTICAL; h++) {
 
       gameTiles[w][h] = rand() % 6;
-      floodedTiles[w][h] = 0;
+      //floodedTiles[w][h] = 0;
+      ResetFloodedTiles();
 
     }
   }
 
-  replacement = gameTiles[0][0];
+  originalTile = gameTiles[0][0];
 
 }
 
@@ -485,25 +508,14 @@ void setupNewGame() {
 //===================================== FLOOD =====================================
 void flood() {
 
-  replacement = gameTiles[0][0];
+  originalTile = gameTiles[0][0];
 
-  if (target != replacement) {
+  if (newTile != originalTile) {
 
     countTotalMoves--;
-    countTotalFlood = 0;
 
     FloodFill();
-
-    for (char w = 0; w < NUMBERTILESHORIZONTAL; w++) {
-
-      for (char h = 0; h < NUMBERTILESVERTICAL; h++) {
-
-        if (floodedTiles[w][h] == 1) {
-          countTotalFlood++;
-        }
-
-      }
-    }
+    FindAndCountFloodedTiles();
 
     if (countTotalFlood == NUMBERTILESHORIZONTAL * NUMBERTILESVERTICAL) {
       //win
@@ -539,10 +551,9 @@ void FloodFill() {
     if (p.y < 0 || p.y > NUMBERTILESVERTICAL - 1 || p.x < 0 || p.x > NUMBERTILESHORIZONTAL - 1) {
       //do nothing in this case
     } else {
-      if (gameTiles[p.x][p.y] == replacement) {
+      if (gameTiles[p.x][p.y] == originalTile) {
 
-        gameTiles[p.x][p.y] = target;
-        floodedTiles[p.x][p.y] = 1; //indicate this point is flooded
+        gameTiles[p.x][p.y] = newTile;
 
         p1.x = p.x + 1;
         p1.y = p.y;
@@ -572,14 +583,71 @@ void FloodFill() {
           push(p1);
         }
 
-      } else if (gameTiles[p.x][p.y] == target) {
-        //indicate this point is flooded
-        floodedTiles[p.x][p.y] = 1;
       }
     }
 
   }
 
+}
+
+void ResetFloodedTiles() {
+  
+  for (char w = 0; w < NUMBERTILESHORIZONTAL; w++) {
+    for (char h = 0; h < NUMBERTILESVERTICAL; h++) {
+      floodedTiles[w][h] = 0;
+    }
+  }
+  
+}
+
+void FindAndCountFloodedTiles() {
+  //reset the stack
+  floodStack.top = -1;
+
+  countTotalFlood = 0;
+
+  ResetFloodedTiles();
+
+  POINT p;
+  p.x = 0;
+  p.y = 0;
+
+  POINT p1;
+
+  push(p);
+
+  while (floodStack.top >= 0) {
+
+    p = pop();
+
+    if (p.y < 0 || p.y > NUMBERTILESVERTICAL - 1 || p.x < 0 || p.x > NUMBERTILESHORIZONTAL - 1) {
+      //do nothing in this case
+    } else {
+      if (gameTiles[p.x][p.y] == newTile && floodedTiles[p.x][p.y] != 1) {
+        
+        floodedTiles[p.x][p.y] = 1; //indicate this point is flooded
+        countTotalFlood++;
+
+        p1.x = p.x + 1;
+        p1.y = p.y;
+          push(p1);
+
+        p1.x = p.x - 1;
+        p1.y = p.y;
+          push(p1);
+
+        p1.x = p.x;
+        p1.y = p.y + 1;
+          push(p1);
+
+        p1.x = p.x;
+        p1.y = p.y - 1;
+          push(p1);
+
+      }
+    }
+
+  }
 }
 
 //===================================== STACK IMPLEMENTATION =====================================
