@@ -6,12 +6,9 @@ Starting from the top-left tile, the goal is to flood the entire board until the
 
 There are 999 levels. Each level has a limit of 20 moves.
 
-## Screenshots
-![Screenshot 1](https://github.com/garyfranz/arduboy_floodfill/blob/master/img/screenshot_v1.1.1_01.PNG "Screenshot 1")
-![Screenshot 2](https://github.com/garyfranz/arduboy_floodfill/blob/master/img/screenshot_v1.1_02.jpg "Screenshot 2")
-![Screenshot 3](https://github.com/garyfranz/arduboy_floodfill/blob/master/img/screenshot_v1.1_03.jpg "Screenshot 3")
-![Screenshot 4](https://github.com/garyfranz/arduboy_floodfill/blob/master/img/screenshot_v1.1_04.jpg "Screenshot 4")
-![Screenshot 5](https://github.com/garyfranz/arduboy_floodfill/blob/master/img/screenshot_v1.1_05.jpg "Screenshot 5")
+## Gameplay
+
+![Gameplay](/img/ArduboyRecording.gif)
 
 ## How to Play
 
